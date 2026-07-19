@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  fullName  String
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pets      Pet[]
+  bookings  Booking[]
+  notifications Notification[]
+}
+
+model Pet {
+  id                  String   @id @default(uuid())
+  name                String
+  species             String
+  breed               String?
+  dateOfBirth         DateTime?
+  specialHandlingNote String?
+  vaccinationRecord   String?
+  ownerId             String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  owner    User      @relation(fields: [ownerId], references: [id])
+  bookings Booking[]
+}
+
+model Provider {
+  id             String   @id @default(uuid())
+  displayName    String
+  providerType   String
+  city           String
+  supportsPickup Boolean  @default(false)
+  supportsHome   Boolean  @default(false)
+  branchId       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  bookings Booking[]
+  branch   Branch?  @relation(fields: [branchId], references: [id])
+  promotions Promotion[]
+}
+
+model Branch {
+  id        String   @id @default(uuid())
+  name      String
+  city      String
+  address   String
+  latitude  Float?
+  longitude Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  providers  Provider[]
+  promotions Promotion[]
+}
+
+model Booking {
+  id              String   @id @default(uuid())
+  serviceType      String
+  serviceMode      String
+  status           String
+  requiresVaccine  Boolean  @default(false)
+  paymentMethod    String
+  scheduledAt      DateTime
+  notes            String?
+  address          String?
+  latitude         Float?
+  longitude        Float?
+  mapUrl           String?
+  rejectionReason  String?
+  paymentStatus    String   @default("PENDING")
+  promotionId      String?
+  userId           String
+  petId            String
+  providerId       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+  pet       Pet      @relation(fields: [petId], references: [id])
+  provider  Provider @relation(fields: [providerId], references: [id])
+  promotion Promotion? @relation(fields: [promotionId], references: [id])
+  notifications Notification[]
+}
+
+model Promotion {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  title       String
+  description String?
+  discountPct Int
+  scope       String   @default("NATIONAL")
+  branchId    String?
+  providerId  String?
+  startsAt    DateTime
+  endsAt      DateTime
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  branch    Branch? @relation(fields: [branchId], references: [id])
+  provider  Provider? @relation(fields: [providerId], references: [id])
+  bookings  Booking[]
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  bookingId String?
+  type      String
+  title     String
+  message   String
+  channel   String   @default("IN_APP")
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id])
+  booking Booking? @relation(fields: [bookingId], references: [id])
+}
