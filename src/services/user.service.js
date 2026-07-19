@@ -5,4 +5,9 @@ async function upsert({ fullName, email }) {
   if (!fullName || !email) throw new AppError("fullName y email son obligatorios.");
   return prisma.user.upsert({ where: { email }, update: { fullName }, create: { fullName, email } });
 }
-module.exports = { upsert };
+
+async function getAll() {
+  return prisma.user.findMany();
+}
+
+module.exports = { upsert, getAll };
