@@ -3,10 +3,14 @@ const HOME_MODES = ["HOME_VISIT", "PICKUP_DROPOFF"];
 const VACCINE_SERVICES = ["BOARDING", "VET"];
 
 function validateBookingInput(input) {
-  ["userId", "petId", "providerId", "serviceType", "serviceMode", "scheduledAt", "paymentMethod"].forEach((field) => {
-    if (!input[field]) throw new AppError(`${field} es obligatorio.`);
-  });
-  if (!["ONLINE", "AT_LOCATION"].includes(input.paymentMethod)) throw new AppError("paymentMethod debe ser ONLINE o AT_LOCATION.");
+  if (!input.userId) throw new AppError("El ID del usuario es obligatorio.");
+  if (!input.petId) throw new AppError("El ID de la mascota es obligatorio.");
+  if (!input.providerId) throw new AppError("El ID del proveedor es obligatorio.");
+  if (!input.serviceType) throw new AppError("El tipo de servicio es obligatorio.");
+  if (!input.serviceMode) throw new AppError("El modo de servicio es obligatorio.");
+  if (!input.scheduledAt) throw new AppError("La fecha y hora de la cita son obligatorias.");
+  if (!input.paymentMethod) throw new AppError("El método de pago es obligatorio.");
+  if (!["ONLINE", "AT_LOCATION"].includes(input.paymentMethod)) throw new AppError("El método de pago debe ser ONLINE o AT_LOCATION.");
 }
 function validateProviderCapability(provider, mode, address, latitude, longitude) {
   if (mode === "HOME_VISIT" && !provider.supportsHome) throw new AppError("Este proveedor no ofrece visitas a domicilio.");

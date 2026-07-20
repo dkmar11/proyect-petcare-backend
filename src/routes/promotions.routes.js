@@ -8,7 +8,18 @@ const router = Router();
  * /api/promotions:
  *   get:
  *     summary: List all promotions
- *     description: Retrieves a list of all available promotions.
+ *     description: Retrieves a list of all available promotions, optionally filtered by branch or provider.
+ *     parameters:
+ *       - in: query
+ *         name: branchId
+ *         schema:
+ *           type: string
+ *         description: The branch ID to filter promotions.
+ *       - in: query
+ *         name: providerId
+ *         schema:
+ *           type: string
+ *         description: The provider ID to filter promotions.
  *     responses:
  *       200:
  *         description: A list of promotions.
@@ -18,4 +29,3 @@ const router = Router();
 router.get("/promotions", asyncHandler(controller.list));
 
 module.exports = router;
-

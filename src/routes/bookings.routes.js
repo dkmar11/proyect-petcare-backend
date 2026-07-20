@@ -18,13 +18,27 @@ const router = Router();
  *             properties:
  *               userId:
  *                 type: string
- *               serviceId:
- *                 type: string
  *               petId:
  *                 type: string
- *               bookingDate:
+ *               providerId:
+ *                 type: string
+ *               serviceType:
+ *                 type: string
+ *               serviceMode:
+ *                 type: string
+ *               promotionCode:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *               latitude:
+ *                 type: number
+ *               longitude:
+ *                 type: number
+ *               scheduledAt:
  *                 type: string
  *                 format: date-time
+ *               paymentMethod:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Booking created successfully.
@@ -76,7 +90,9 @@ router.get("/users/:userId/bookings", asyncHandler(controller.list));
  *             properties:
  *               status:
  *                 type: string
- *                 enum: [PENDING, CONFIRMED, CANCELLED, COMPLETED]
+ *                 enum: [CONFIRMED, IN_PROGRESS, COMPLETED, REJECTED]
+ *               rejectionReason:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Booking status updated successfully.
@@ -107,4 +123,3 @@ router.patch("/bookings/:bookingId/status", asyncHandler(controller.updateStatus
 router.post("/bookings/:bookingId/payment/confirm", asyncHandler(controller.confirmPayment));
 
 module.exports = router;
-

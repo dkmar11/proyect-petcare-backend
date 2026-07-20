@@ -51,8 +51,6 @@ router.get("/users/:userId/pets", asyncHandler(controller.list));
  *                 type: string
  *               breed:
  *                 type: string
- *               age:
- *                 type: integer
  *     responses:
  *       201:
  *         description: Pet created successfully.
@@ -93,4 +91,3 @@ router.post("/users/:userId/pets", asyncHandler(controller.create));
 router.post("/pets/:petId/vaccination-record", upload.single("record"), asyncHandler(controller.uploadVaccination));
 
 module.exports = router;
-
