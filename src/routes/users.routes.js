@@ -75,5 +75,7 @@ router.post("/users", asyncHandler(controller.upsert));
  */
 router.get("/users", asyncHandler(controller.getAll));
 
+router.post("/users/login", asyncHandler(controller.login));
+
 module.exports = router;
 

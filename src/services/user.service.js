@@ -10,4 +10,11 @@ async function getAll() {
   return prisma.user.findMany();
 }
 
-module.exports = { upsert, getAll };
+async function login({ email }) {
+  if (!email) throw new AppError("El email es obligatorio.");
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) throw new AppError("Usuario no encontrado.", 404);
+  return user;
+}
+
+module.exports = { upsert, getAll, login };
