@@ -41,6 +41,8 @@ model Provider {
   displayName    String
   providerType   String
   city           String
+  email          String?  @unique
+  password       String?
   supportsPickup Boolean  @default(false)
   supportsHome   Boolean  @default(false)
   branchId       String?

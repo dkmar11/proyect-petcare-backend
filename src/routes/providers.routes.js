@@ -58,5 +58,83 @@ router.get("/providers", asyncHandler(controller.list));
  */
 router.post("/providers", asyncHandler(controller.create));
 
+/**
+ * @swagger
+ * /api/providers/login:
+ *   post:
+ *     summary: Provider login
+ *     description: Authenticates a provider by email and password.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Provider authenticated successfully.
+ *       401:
+ *         description: Invalid credentials.
+ */
+router.post("/providers/login", asyncHandler(controller.login));
+
+/**
+ * @swagger
+ * /api/providers/{providerId}/bookings:
+ *   get:
+ *     summary: List provider bookings
+ *     description: Retrieves bookings for a specific provider.
+ *     parameters:
+ *       - in: path
+ *         name: providerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The provider ID.
+ *     responses:
+ *       200:
+ *         description: A list of bookings.
+ *       404:
+ *         description: Provider not found.
+ */
+router.get("/providers/:providerId/bookings", asyncHandler(controller.listBookings));
+
+/**
+ * @swagger
+ * /api/providers/{id}:
+ *   patch:
+ *     summary: Update provider
+ *     description: Updates a provider.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The provider ID.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Provider updated successfully.
+ *       404:
+ *         description: Provider not found.
+ */
+router.patch("/providers/:id", asyncHandler(controller.update));
+
 module.exports = router;
 
