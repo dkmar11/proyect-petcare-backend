@@ -17,5 +17,46 @@ const router = Router();
  */
 router.get("/providers", asyncHandler(controller.list));
 
+/**
+ * @swagger
+ * /api/providers:
+ *   post:
+ *     summary: Create provider
+ *     description: Creates a service provider.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               displayName:
+ *                 type: string
+ *               providerType:
+ *                 type: string
+ *               city:
+ *                 type: string
+ *               branchId:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *               latitude:
+ *                 type: number
+ *               longitude:
+ *                 type: number
+ *               supportsPickup:
+ *                 type: boolean
+ *               supportsHome:
+ *                 type: boolean
+ *     responses:
+ *       201:
+ *         description: Provider created successfully.
+ *       400:
+ *         description: Bad request.
+ */
+router.post("/providers", asyncHandler(controller.create));
+
 module.exports = router;
 
