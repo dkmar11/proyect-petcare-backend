@@ -1,69 +1,65 @@
-
-workspace "PetCare Backend - Componentes" "Diagrama C3 alineado a la estructura de carpetas" {
+workspace "PetCare Backend - Modular" "Diagrama C3 de la arquitectura de monolito modular" {
 
     model {
-        cliente = person "Cliente" "Dueño de mascota que registra perfiles y agenda servicios."
-        proveedor = person "Proveedor" "Confirma y actualiza estados de reservas."
+        cliente = person "Cliente" "Duenio de mascota que registra perfiles y agenda servicios."
+        proveedor = person "Proveedor" "Atiende servicios y actualiza estados de reservas."
 
         frontend = softwareSystem "PetCare Frontend" "SPA que consume la API REST."
-        googleMaps = softwareSystem "Google Maps" "Servicio externo para generar enlaces de ubicación."
-        pasarelaPago = softwareSystem "Pasarela de Pagos" "Integración externa para confirmar pagos ONLINE."
+        googleMaps = softwareSystem "Google Maps" "Servicio externo para generar enlaces de ubicacion."
+        paymentGateway = softwareSystem "Pasarela de Pagos" "Proveedor externo para pagos online."
 
-        petcare = softwareSystem "PetCare Backend" "API REST para usuarios, mascotas y reservas." {
-            
-            api = container "API Application" "Aplicación Express." "Node.js, Express" {
-                
-                // Mapeo directo a las carpetas vistas en image_d9d777.png
-                appServer = component "App & Server" "Punto de entrada e inicialización (app.js / server.js)." "Node.js"
-                rutas = component "Routes" "Definición de endpoints y enrutamiento (src/routes)." "Express Router"
-                middlewares = component "Middlewares" "Manejo global de errores y envoltorios asíncronos (src/middlewares)." "Express Middleware"
-                controladores = component "Controllers" "Lógica de presentación HTTP y extracción de parámetros (src/controllers)." "Express Controllers"
-                servicios = component "Services" "Orquestación de casos de uso de la aplicación (src/services)." "Node.js Modules"
-                dominio = component "Domain" "Reglas de negocio puras y errores de aplicación (src/domain)." "JavaScript"
-                infraestructura = component "Infrastructure" "Adaptadores de mapas, repositorios y subida de archivos (src/infrastructure)." "Node.js Modules"
-                prismaClient = component "Prisma ORM" "Cliente de acceso a base de datos (prisma/)." "Prisma Client"
+        petcare = softwareSystem "PetCare Backend" "API REST implementada como monolito modular." {
+            api = container "Express API" "Aplicacion Node.js que monta los modulos y middlewares." "Node.js, Express" {
+                app = component "App and Server" "Puntos de entrada app.js y server.js." "Node.js" {
+                    tags "EntryPoint"
+                }
+                shared = component "Shared" "Configuracion, errores, middlewares, Prisma y almacenamiento compartido." "Shared infrastructure" {
+                    tags "Shared"
+                }
+                users = component "Users Module" "Clientes, proveedores, perfiles y autenticacion." "Domain module" {
+                    tags "DomainModule"
+                }
+                pets = component "Pets Module" "Perfiles de mascotas y cartillas de vacunacion." "Domain module" {
+                    tags "DomainModule"
+                }
+                reservations = component "Reservations Module" "Agendamiento, promociones, notificaciones y mapas." "Domain module" {
+                    tags "DomainModule"
+                }
+                payments = component "Payments Module" "Confirmacion de pagos e integracion con pasarela externa." "Domain module" {
+                    tags "DomainModule"
+                }
             }
 
-            bd = container "PetCare Database" "Persistencia relacional." "PostgreSQL" {
+            database = container "PetCare Database" "Persistencia relacional de los contextos de negocio." "PostgreSQL" {
                 tags "Database"
             }
-
-            archivos = container "Vaccination Files" "Directorio local de evidencias (uploads/)." "Filesystem" {
+            files = container "Vaccination Files" "Almacenamiento local de evidencias de vacunacion." "Filesystem" {
                 tags "FileStorage"
             }
         }
 
-        // Interacciones externas
         cliente -> frontend "Usa"
         proveedor -> frontend "Usa"
-        
-        frontend -> appServer "Consume API REST" "JSON/HTTPS"
+        frontend -> app "Consume API REST" "JSON/HTTPS"
 
-        // Flujo interno de las capas (Arquitectura Limpia/Capas)
-        appServer -> middlewares "Configura"
-        appServer -> rutas "Monta las rutas principales en"
-        
-        rutas -> middlewares "Aplica validaciones de entrada en"
-        rutas -> controladores "Delega peticiones a"
-        
-        controladores -> servicios "Ejecuta casos de uso a través de"
-        controladores -> middlewares "Propaga excepciones a"
-        
-        servicios -> dominio "Valida reglas de negocio puras en"
-        servicios -> infraestructura "Utiliza adaptadores externos de"
-        servicios -> prismaClient "Lee y escribe datos vía"
-        servicios -> pasarelaPago "Genera intenciones de pago en" "HTTP"
+        app -> shared "Inicializa configuracion y middlewares"
+        app -> users "Monta rutas de users"
+        app -> pets "Monta rutas de pets"
+        app -> reservations "Monta rutas de reservations"
+        app -> payments "Monta rutas de payments"
 
-        // Responsabilidades de Infraestructura y Datos
-        infraestructura -> googleMaps "Genera URLs de ubicación mediante"
-        infraestructura -> archivos "Guarda comprobantes de vacunación en"
-        infraestructura -> prismaClient "Accede a persistencia personalizada vía"
-        
-        prismaClient -> bd "Ejecuta queries SQL en" "TCP/IP"
+        users -> shared "Usa Prisma y errores compartidos"
+        pets -> shared "Usa Prisma y errores compartidos"
+        pets -> files "Guarda cartillas mediante uploads"
+        reservations -> shared "Usa Prisma y errores compartidos"
+        reservations -> googleMaps "Genera URLs de ubicacion" "HTTPS"
+        payments -> shared "Usa Prisma y errores compartidos"
+        payments -> paymentGateway "Confirma pagos online" "HTTPS"
+        shared -> database "Ejecuta queries SQL" "TCP/IP"
     }
 
     views {
-        component api "ComponentesBackend" "Vista C3: Componentes alineados a la estructura de directorios." {
+        component api "ComponentesBackendModular" "Vista C3: modulos de dominio y shared." {
             include *
             autolayout lr
         }
@@ -85,6 +81,18 @@ workspace "PetCare Backend - Componentes" "Diagrama C3 alineado a la estructura 
             element "Component" {
                 background "#d9f0f4"
                 color "#102a43"
+            }
+            element "EntryPoint" {
+                background "#0b5ed7"
+                color "#ffffff"
+            }
+            element "Shared" {
+                background "#6c757d"
+                color "#ffffff"
+            }
+            element "DomainModule" {
+                background "#2a9d8f"
+                color "#ffffff"
             }
             element "Database" {
                 shape cylinder

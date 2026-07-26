@@ -1,135 +1,150 @@
-workspace "PetCare Home Services" "Arquitectura de Código (C4 Nivel 4) - Backend" {
+workspace "PetCare Backend - Modular" "Arquitectura de codigo C4 Nivel 4" {
 
     model {
-        // Se definen en el modelo global, pero interactúan con el contenedor, no con el código interno.
-        petOwner = person "Dueño de Mascota" "Cliente que solicita reservas." "Customer"
-        serviceProvider = person "Proveedor de Servicios" "Atiende agenda." "Provider"
-        operations = person "Operaciones" "Mantenimiento." "Ops"
+        cliente = person "Cliente" "Solicita servicios y administra sus mascotas." "Customer"
+        proveedor = person "Proveedor" "Gestiona servicios y reservas." "Provider"
+        operations = person "Operaciones" "Ejecuta tareas de mantenimiento." "Ops"
 
-        mappingService = softwareSystem "Servicio de Mapas" "Google Maps." "External System"
-        paymentGateway = softwareSystem "Pasarela de Pagos" "Stripe/PayPal." "External System"
+        mappingService = softwareSystem "Google Maps" "Servicio externo de mapas." "ExternalSystem"
+        paymentGateway = softwareSystem "Pasarela de Pagos" "Proveedor externo de pagos online." "ExternalSystem"
 
-        petCareBackend = softwareSystem "PetCare Backend" "API REST en Node.js/Express." "Target System" {
-            
-            postgres = container "PostgreSQL" "Base de datos principal." "PostgreSQL" "Database"
-            fileStorage = container "Vaccination Storage" "Directorio uploads/." "Filesystem" "Storage"
+        petcare = softwareSystem "PetCare Backend" "API REST Node.js/Express como monolito modular." "TargetSystem" {
+            database = container "PetCare Database" "Persistencia relacional." "PostgreSQL" "Database"
+            fileStorage = container "Vaccination Files" "Almacenamiento de cartillas." "Filesystem" "Storage"
 
-            backendApi = container "Core API" "Monolito modular Express." "Node.js + Express" "Backend" {
+            api = container "Express API" "Aplicacion Express que monta los paquetes de dominio." "Node.js + Express" "Backend" {
+                app = component "app.js / server.js" "Inicializa Express y monta las rutas de cada modulo." "Entry point" "EntryPoint"
 
-                
-                // Raíz (src/)
-                appJs = component "app.js / server.js" "Punto de entrada. Inicializa Express y monta middlewares/rutas." "Node.js"
-                
-                // config/
-                configModule = component "config.js" "Carga de variables de entorno (.env)." "Module"
+                sharedConfig = component "shared/config" "Carga variables de entorno y configuracion de Swagger." "Config" "Shared"
+                sharedMiddleware = component "shared/middlewares" "Manejo asincrono y errores HTTP globales." "Express middleware" "Shared"
+                sharedErrors = component "shared/errors" "Errores comunes de la aplicacion." "Error handling" "Shared"
+                prismaClient = component "shared/infrastructure/persistence/prisma" "Cliente Prisma compartido por los modulos." "Prisma Client" "Shared"
+                uploadAdapter = component "shared/infrastructure/storage" "Configuracion de Multer para cartillas." "Storage adapter" "Shared"
 
-                // middlewares/
-                asyncMiddleware = component "async-handler.js" "Wrapper para errores en promesas." "Express middleware"
-                errorMiddleware = component "error-handler.js" "Manejador global de respuestas de error." "Express middleware"
+                userRoutes = component "users/*.routes.js" "Rutas de clientes y proveedores." "Router" "Users"
+                userControllers = component "users/*controller.js" "Adaptadores HTTP del contexto de usuarios." "Controller" "Users"
+                userServices = component "users/*service.js" "Casos de uso de usuarios y proveedores." "Application service" "Users"
 
-                // routes/
-                routesIndex = component "index.routes.js" "Enrutador principal que agrupa los demás." "Router"
-                routesUsers = component "users.routes.js" "Endpoints de usuarios." "Router"
-                routesBookings = component "bookings.routes.js" "Endpoints de reservas." "Router"
+                petRoutes = component "pets/pet.routes.js" "Rutas de perfiles y cartillas." "Router" "Pets"
+                petController = component "pets/pet.controller.js" "Adaptador HTTP de mascotas." "Controller" "Pets"
+                petService = component "pets/pet.service.js" "Casos de uso de mascotas." "Application service" "Pets"
 
-                // controllers/
-                userController = component "user.controller.js" "Extrae req.body/params y orquesta la respuesta." "Controller"
-                bookingController = component "booking.controller.js" "Controlador HTTP para reservas." "Controller"
+                reservationRoutes = component "reservations/*.routes.js" "Rutas de reservas, promociones, mapas y notificaciones." "Router" "Reservations"
+                reservationControllers = component "reservations/*controller.js" "Adaptadores HTTP de reservas." "Controller" "Reservations"
+                reservationService = component "reservations/reservation.service.js" "Casos de uso de agendamiento y estados." "Application service" "Reservations"
+                reservationRules = component "reservations/domain/booking.rules.js" "Reglas de validacion de reservas." "Domain rules" "Reservations"
+                mapsAdapter = component "reservations/infrastructure/google-maps.service.js" "Adaptador para enlaces de Google Maps." "Infrastructure adapter" "Reservations"
+                promotionService = component "reservations/promotion.service.js" "Reglas y consultas de promociones." "Application service" "Reservations"
+                notificationService = component "reservations/notification.service.js" "Notificaciones de reservas y recordatorios." "Application service" "Reservations"
+                notificationRepository = component "reservations/infrastructure/notification.repository.js" "Persistencia de notificaciones." "Repository" "Reservations"
 
-                // services/
-                userService = component "user.service.js" "Lógica de aplicación para usuarios." "Service"
-                bookingService = component "booking.service.js" "Lógica principal de reservas." "Service"
-
-                // domain/
-                bookingRules = component "booking.rules.js" "Reglas puras de validación de negocio." "Domain rules"
-                appError = component "app-error.js" "Clase base para errores de dominio." "Domain error"
-
-                // infrastructure/ & prisma/
-                prismaClient = component "prisma/client.js" "Cliente ORM autogenerado." "Prisma Client"
-                mapsAdapter = component "google-maps.service.js" "Adaptador de geocodificación." "Infrastructure adapter"
-                vaccinationUpload = component "vaccination-upload.js" "Configuración de Multer." "Infrastructure adapter"
+                paymentRoutes = component "payments/payment.routes.js" "Ruta de confirmacion de pagos." "Router" "Payments"
+                paymentController = component "payments/payment.controller.js" "Adaptador HTTP de pagos." "Controller" "Payments"
+                paymentService = component "payments/payment.service.js" "Caso de uso de confirmacion de pagos." "Application service" "Payments"
             }
         }
 
-        // --- 3. RELACIONES EXTERNAS (Al contenedor) ---
-        petOwner -> backendApi "Consume API" "JSON/HTTPS"
-        serviceProvider -> backendApi "Consume API" "JSON/HTTPS"
-        operations -> backendApi "Ejecuta CRON" "HTTPS"
+        cliente -> api "Consume API" "JSON/HTTPS"
+        proveedor -> api "Consume API" "JSON/HTTPS"
+        operations -> api "Ejecuta mantenimiento" "HTTPS"
 
-        // --- 4. RELACIONES INTERNAS DE CÓDIGO ---
-        appJs -> configModule "Carga configuración"
-        appJs -> asyncMiddleware "Registra"
-        appJs -> errorMiddleware "Registra"
-        appJs -> routesIndex "Monta rutas base"
+        app -> sharedConfig "Carga"
+        app -> sharedMiddleware "Registra"
+        app -> userRoutes "Monta"
+        app -> petRoutes "Monta"
+        app -> reservationRoutes "Monta"
+        app -> paymentRoutes "Monta"
 
-        routesIndex -> routesUsers "Monta"
-        routesIndex -> routesBookings "Monta"
+        userRoutes -> userControllers "Delega a"
+        petRoutes -> petController "Delega a"
+        reservationRoutes -> reservationControllers "Delega a"
+        paymentRoutes -> paymentController "Delega a"
 
-        routesUsers -> userController "Delega a"
-        routesBookings -> bookingController "Delega a"
+        userControllers -> userServices "Ejecuta casos de uso"
+        petController -> petService "Ejecuta casos de uso"
+        reservationControllers -> reservationService "Ejecuta reservas"
+        reservationControllers -> promotionService "Ejecuta promociones"
+        reservationControllers -> notificationService "Ejecuta notificaciones"
+        reservationControllers -> mapsAdapter "Genera enlaces"
+        paymentController -> paymentService "Ejecuta confirmacion"
 
-        userController -> userService "Ejecuta caso de uso"
-        bookingController -> bookingService "Ejecuta caso de uso"
+        userServices -> prismaClient "Lee y escribe"
+        petService -> prismaClient "Lee y escribe"
+        reservationService -> prismaClient "Lee y escribe"
+        reservationService -> reservationRules "Valida reglas"
+        reservationService -> promotionService "Consulta promociones"
+        reservationService -> notificationService "Crea notificaciones"
+        notificationService -> notificationRepository "Persiste"
+        notificationRepository -> prismaClient "Usa"
+        paymentService -> prismaClient "Actualiza estado de pago"
 
-        userService -> prismaClient "Lee/Escribe"
-        bookingService -> prismaClient "Lee/Escribe"
-        bookingService -> bookingRules "Valida estado"
-        bookingService -> mapsAdapter "Obtiene ubicación"
-        
-        // Uso de errores de dominio
-        userService -> appError "Lanza error si falla"
-        bookingService -> appError "Lanza error si falla"
+        petService -> uploadAdapter "Configura carga de cartillas"
+        uploadAdapter -> fileStorage "Guarda archivos"
+        mapsAdapter -> mappingService "Llama API externa" "HTTPS"
+        paymentService -> paymentGateway "Confirma pago externo" "HTTPS"
 
-        // Infraestructura y BD
-        prismaClient -> postgres "Queries SQL" "TCP/IP"
-        vaccinationUpload -> fileStorage "Guarda binarios"
-        mapsAdapter -> mappingService "Llama a API externa" "HTTPS"
-        bookingService -> paymentGateway "Confirma pago" "HTTPS"
+        // No se modelan dependencias directas entre modulos de dominio.
+        // TODO: Refactor to use Domain Events para PaymentConfirmed.
     }
 
     views {
-        component backendApi "Codigo-Backend-C4" {
+        component api "CodigoPetCare" {
             include *
-            // LA CLAVE ESTÁ AQUÍ: Ocultamos a las personas y sistemas que no aportan al código interno.
-            exclude petOwner serviceProvider operations configModule
-            autoLayout lr
-            description "Nivel 4 (Código): Clases, módulos y dependencias internas de la API."
+            exclude cliente proveedor operations mappingService paymentGateway database fileStorage
+            autolayout lr
+            description "Nivel 4: paquetes de dominio, adaptadores y dependencias internas."
         }
 
         styles {
             element "Person" {
-                shape Person
-                background #08427b
-                color #ffffff
+                shape person
+                background "#08427b"
+                color "#ffffff"
             }
-            element "Target System" {
-                shape RoundedBox
-                background #1168bd
-                color #ffffff
+            element "TargetSystem" {
+                shape roundedbox
+                background "#1168bd"
+                color "#ffffff"
             }
-            element "External System" {
-                shape RoundedBox
-                background #999999
-                color #ffffff
+            element "ExternalSystem" {
+                shape roundedbox
+                background "#999999"
+                color "#ffffff"
             }
             element "Backend" {
-                shape RoundedBox
-                background #0b5ed7
-                color #ffffff
+                shape roundedbox
+                background "#0b5ed7"
+                color "#ffffff"
             }
-            element "Component" {
-                background #d9f0ff
-                color #0b2239
+            element "Shared" {
+                background "#6c757d"
+                color "#ffffff"
+            }
+            element "Users" {
+                background "#2a9d8f"
+                color "#ffffff"
+            }
+            element "Pets" {
+                background "#e9c46a"
+                color "#102a43"
+            }
+            element "Reservations" {
+                background "#f4a261"
+                color "#102a43"
+            }
+            element "Payments" {
+                background "#e76f51"
+                color "#ffffff"
             }
             element "Database" {
-                shape Cylinder
-                background #23a2d9
-                color #ffffff
+                shape cylinder
+                background "#23a2d9"
+                color "#ffffff"
             }
             element "Storage" {
-                shape Folder
-                background #23a2d9
-                color #ffffff
+                shape folder
+                background "#23a2d9"
+                color "#ffffff"
             }
         }
     }
