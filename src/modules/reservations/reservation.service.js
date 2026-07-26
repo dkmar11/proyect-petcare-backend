@@ -33,4 +33,16 @@ async function updateStatus(id, { status, rejectionReason, paymentStatus }) {
   await notifications.create(booking.userId, booking.id, `BOOKING_${status}`, title, status === "REJECTED" ? `${message} Motivo: ${rejectionReason}` : message);
   return booking;
 }
-module.exports = { create, listByUser, listByProvider, updateStatus };
+async function handlePaymentConfirmed({ bookingId, paymentStatus = "PAID" }) {
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include });
+  if (!booking) throw new AppError(`Reserva ${bookingId} no encontrada para PaymentConfirmed.`, 404);
+  if (["PAID", "PAY_AT_LOCATION_CONFIRMED"].includes(booking.paymentStatus)) return booking;
+  const updated = await prisma.booking.update({
+    where: { id: bookingId },
+    data: { paymentStatus, status: booking.status === "PENDING" ? "CONFIRMED" : booking.status },
+    include,
+  });
+  await notifications.create(updated.userId, updated.id, "PAYMENT_CONFIRMED", "Pago confirmado", "Tu pago online fue confirmado y tu reserva está lista para ser atendida.");
+  return updated;
+}
+module.exports = { create, listByUser, listByProvider, updateStatus, handlePaymentConfirmed };

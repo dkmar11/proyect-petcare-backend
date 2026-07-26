@@ -20,6 +20,8 @@ API REST para perfiles de mascotas, reservas, proveedores, promociones y notific
 
 El frontend se conecta por defecto a `http://localhost:3000/api`. Para cambiarlo, crea `frontend/.env` con `VITE_API_URL=http://tu-api/api`.
 
+RabbitMQ es obligatorio para arrancar el servidor: define `CLOUDAMQP_URL` en `.env` y asigna un `RABBITMQ_NAMESPACE` único por despliegue (`staging-472916` para staging y `os-445014` para producción). El bus crea las colas como `petcare.<namespace>.<queue>`, evitando colisiones entre réplicas y entornos.
+
 ## Endpoints principales
 
 - `POST /api/users` crea o actualiza un usuario por correo.
