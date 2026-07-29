@@ -3,7 +3,7 @@ const AppError = require("../../shared/errors/app-error");
 const { validateBookingInput, validateProviderCapability, requiresVaccine } = require("./domain/booking.rules");
 const { createMapUrl } = require("./infrastructure/google-maps.service");
 const promotions = require("./promotion.service");
-const notifications = require("./notification.service");
+const notifications = require("../notifications/notification.service");
 
 const include = { pet: true, provider: { include: { branch: true } }, promotion: true };
 async function create(input) {

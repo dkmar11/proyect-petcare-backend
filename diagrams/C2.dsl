@@ -1,60 +1,41 @@
-workspace "PetCare Home Services" "Arquitectura de Contenedores (C2) - Enfoque Web Responsivo" {
+workspace "PetCare Backend" "C2 - Diagrama de contenedores con RabbitMQ" {
 
     model {
-        // --- Actores ---
-        petOwner = person "Dueño de Mascota" "Cliente que reserva servicios y sube carnets." "Customer"
-        serviceProvider = person "Proveedor de Servicios" "Gestiona disponibilidad y actualiza el estado del servicio." "Provider"
-        marketingAdmin = person "Administrador de Marketing" "Gestiona promociones locales y nacionales." "Admin"
+        petOwner = person "Dueno de Mascota" "Cliente final de la plataforma." "Customer"
+        serviceProvider = person "Proveedor de Servicios" "Gestiona agenda y estados de servicio." "Provider"
+        operations = person "Operaciones" "Ejecuta recordatorios y monitorea procesos." "Ops"
 
-        // --- Sistemas Externos ---
-        mappingService = softwareSystem "Servicio de Mapas" "Cálculo de rutas para visitas a domicilio." "External System"
-        paymentGateway = softwareSystem "Pasarela de Pagos" "Procesa transacciones en línea." "External System"
-        notificationService = softwareSystem "Servicio de Notificaciones" "Envía recordatorios y alertas (Email/SMS)." "External System"
+        frontend = softwareSystem "PetCare Frontend" "SPA React." "Client System"
+        paymentGateway = softwareSystem "Pasarela de Pagos" "Sistema externo para pagos online." "External System"
+        mappingService = softwareSystem "Google Maps" "Servicio externo de ubicacion." "External System"
+        rabbitMq = softwareSystem "RabbitMQ" "Broker de eventos asincronos." "External System"
 
-        // --- Sistema Central ---
-        petCareSystem = softwareSystem "Sistema PetCare Home Services" "Target System" {
-            
-            // 1. Única Aplicación Front-end (Responsiva)
-            responsiveWebApp = container "Aplicación Web Responsiva" "Proporciona toda la interfaz de usuario (móvil y escritorio). Adapta la experiencia según el rol (Dueño, Proveedor, Admin)." "React" "Web Browser"
-            
-            // 2. Lógica de Negocio
-            backendApi = container "Core API" "Maneja la lógica de negocio, reglas de reservas, validaciones y orquestación con terceros." "Node.js" "Backend"
-            
-            // 3. Infraestructura de Supabase
-            supabaseDb = container "Supabase DB & Auth" "Gestiona identidades (Roles), seguridad (RLS) y almacena datos relacionales." "PostgreSQL" "Database"
-            supabaseStorage = container "Supabase Storage" "Almacena carnets de vacunación y fotos en buckets seguros." "Object Storage" "Storage"
-
-            // --- Relaciones de Usuarios hacia el Front-end ---
-            petOwner -> responsiveWebApp "Accede desde navegador móvil/desktop para reservar y pagar"
-            serviceProvider -> responsiveWebApp "Accede desde navegador móvil/desktop para ver agenda"
-            marketingAdmin -> responsiveWebApp "Accede desde escritorio para gestionar promociones"
-
-            // --- Relaciones Front-end a Back-end y Supabase ---
-            responsiveWebApp -> backendApi "Realiza peticiones de negocio mediante" "JSON/HTTPS"
-            
-            // El cliente web sigue subiendo el archivo directamente usando el SDK de Supabase para mayor eficiencia
-            responsiveWebApp -> supabaseStorage "Sube imágenes directamente usando" "Supabase SDK / HTTPS"
-            
-            // --- Relaciones de Back-end ---
-            backendApi -> supabaseDb "Lee y escribe datos relacionales usando" "TCP/IP"
-            backendApi -> supabaseStorage "Genera URLs firmadas para lectura de imágenes usando" "REST API"
-
-            // --- Relaciones a Sistemas Externos ---
-            backendApi -> mappingService "Consulta distancias para servicios a domicilio en" "JSON/HTTPS"
-            backendApi -> paymentGateway "Procesa pagos seguros en" "JSON/HTTPS"
-            backendApi -> notificationService "Dispara eventos de notificación en" "JSON/HTTPS"
+        petcare = softwareSystem "PetCare Backend" "API REST modular." "Target System" {
+            api = container "Express API" "Expone endpoints /api y /api-docs; implementa modulos de negocio." "Node.js + Express" "Backend"
+            database = container "PetCare Database" "Persistencia relacional de usuarios, mascotas, reservas, promociones y notificaciones." "PostgreSQL" "Database"
+            files = container "Vaccination Files" "Almacenamiento local en uploads/vaccinations." "Filesystem" "Storage"
         }
+
+        petOwner -> frontend "Usa" "Web"
+        serviceProvider -> frontend "Usa" "Web"
+        frontend -> api "Consume API" "JSON/HTTPS"
+
+        operations -> api "Dispara /maintenance/appointment-reminders" "HTTPS"
+        paymentGateway -> api "Confirma pagos en /bookings/:id/payment/confirm" "HTTPS/Webhook"
+
+        api -> database "Lee y escribe" "TCP/IP"
+        api -> files "Guarda y sirve archivos" "Filesystem"
+        api -> mappingService "Genera links" "HTTPS"
+        api -> rabbitMq "Publica PaymentConfirmed y consume payment.confirmed" "AMQP"
     }
 
     views {
-        // Vista de Contenedores (C2)
-        container petCareSystem "Contenedores-PetCare-Web" {
+        container petcare "Contenedores-PetCare-Backend" {
             include *
-            autoLayout tb
-            description "Diagrama de Contenedores (C2) utilizando una única Aplicación Web Responsiva para todos los actores."
+            autoLayout lr
+            description "Contenedores reales del backend, incluyendo broker de eventos RabbitMQ."
         }
 
-        // Estilos visuales
         styles {
             element "Person" {
                 shape Person
@@ -70,9 +51,9 @@ workspace "PetCare Home Services" "Arquitectura de Contenedores (C2) - Enfoque W
                 background #999999
                 color #ffffff
             }
-            element "Web Browser" {
-                shape WebBrowser
-                background #1168bd
+            element "Client System" {
+                shape RoundedBox
+                background #1f7a8c
                 color #ffffff
             }
             element "Backend" {
