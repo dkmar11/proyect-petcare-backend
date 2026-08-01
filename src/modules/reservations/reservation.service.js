@@ -49,4 +49,15 @@ async function handlePaymentConfirmed({ bookingId, paymentStatus = "PAID", sagaI
   }
   return updated;
 }
-module.exports = { create, listByUser, listByProvider, updateStatus, handlePaymentConfirmed };
+
+async function compensate(bookingId) {
+  return prisma.$transaction(async (tx) => {
+    const booking = await tx.booking.findUnique({ where: { id: bookingId } });
+    if (!booking) return null;
+    await tx.notification.deleteMany({ where: { bookingId } });
+    await tx.booking.delete({ where: { id: bookingId } });
+    return booking;
+  });
+}
+
+module.exports = { create, listByUser, listByProvider, updateStatus, handlePaymentConfirmed, compensate };

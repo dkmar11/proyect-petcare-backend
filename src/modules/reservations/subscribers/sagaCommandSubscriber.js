@@ -11,8 +11,9 @@ async function startSagaCommandSubscriber() {
         throw new Error("Comando BookingCreate inválido.");
       }
       console.log("[SAGA][BACKEND][RESERVATION] COMMAND_START", { sagaId: command.sagaId, command: command.commandName, step: "RESERVATION" });
+      let booking = null;
       try {
-        const booking = await reservations.create(command.payload, { notify: false });
+        booking = await reservations.create(command.payload, { notify: false });
         if (booking.status === "REJECTED") {
           console.log("[SAGA][BACKEND][RESERVATION] STEP_FAILED", { sagaId: command.sagaId, step: "RESERVATION", reason: booking.rejectionReason });
           await rabbitMQBus.publish("petcare_events", "saga.failed", {
@@ -42,6 +43,7 @@ async function startSagaCommandSubscriber() {
           eventVersion: 1,
           sagaId: command.sagaId,
           step: "RESERVATION",
+          bookingId: booking?.id,
           error: error.message,
         });
       }
@@ -56,18 +58,16 @@ async function startSagaCommandSubscriber() {
         throw new Error("Comando ReservationCompensate inválido.");
       }
       console.log("[SAGA][BACKEND][RESERVATION] COMPENSATION_START", { sagaId: command.sagaId, bookingId: command.bookingId, step: "RESERVATION" });
-      const booking = await reservations.updateStatus(command.bookingId, {
-        status: "REJECTED",
-        rejectionReason: `Saga compensada: ${command.reason}`,
-      });
+      const booking = await reservations.compensate(command.bookingId);
       await rabbitMQBus.publish("petcare_events", "reservation.compensated", {
         eventName: "ReservationCompensated",
         eventVersion: 1,
         sagaId: command.sagaId,
         occurredAt: new Date().toISOString(),
-        bookingId: booking.id,
+        bookingId: command.bookingId,
+        deleted: Boolean(booking),
       });
-      console.log("[SAGA][BACKEND][RESERVATION] COMPENSATION_COMPLETED", { sagaId: command.sagaId, bookingId: booking.id });
+      console.log("[SAGA][BACKEND][RESERVATION] COMPENSATION_COMPLETED", { sagaId: command.sagaId, bookingId: command.bookingId, deleted: Boolean(booking) });
     },
   );
   console.log(`[RabbitMQ] Subscribers de reservas activos en ${queue} y ${compensationQueue}`);
