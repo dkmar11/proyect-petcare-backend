@@ -5,11 +5,9 @@ const amqp = require("amqplib");
  * queue names are namespaced to prevent staging and production collisions.
  */
 class RabbitMQBus {
-  constructor() {
-    this.connection = null;
-    this.channel = null;
-    this.initialization = null;
-  }
+  connection = null;
+  channel = null;
+  initialization = null;
 
   async initialize() {
     if (this.channel) return this.channel;
@@ -61,7 +59,7 @@ class RabbitMQBus {
         channel.ack(message);
       } catch (error) {
         console.error(`Error procesando ${exchange}:${routingKey}:`, error);
-        channel.nack(message, false, false);
+        channel.nack(message, false, true);
       }
     });
     return scopedQueue;

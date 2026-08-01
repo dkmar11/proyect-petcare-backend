@@ -2,7 +2,7 @@ const prisma = require("../../shared/infrastructure/persistence/prisma/client");
 const AppError = require("../../shared/errors/app-error");
 const rabbitMQBus = require("../../shared/infrastructure/RabbitMQBus");
 
-async function confirmBookingPayment(bookingId) {
+async function confirmBookingPayment(bookingId, sagaId = null) {
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
   if (!booking) throw new AppError("Reserva no encontrada.", 404);
   if (!["ONLINE", "AT_LOCATION"].includes(booking.paymentMethod)) throw new AppError("Método de pago no válido.");
@@ -20,8 +20,10 @@ async function confirmBookingPayment(bookingId) {
     eventVersion: 1,
     occurredAt: new Date().toISOString(),
     bookingId: paidBooking.id,
+    userId: paidBooking.userId,
     paymentStatus: paidBooking.paymentStatus,
     paymentMethod: paidBooking.paymentMethod,
+    sagaId,
   });
   console.log(`[confirmBookingPayment] PaymentConfirmed procesado: ${bookingId}`);
   return paidBooking;

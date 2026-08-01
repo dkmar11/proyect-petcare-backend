@@ -3,6 +3,8 @@ const controller = require("./notification.controller");
 const asyncHandler = require("../../shared/middlewares/async-handler");
 const router = Router();
 
+router.post("/notifications", asyncHandler(controller.create));
+
 /**
  * @swagger
  * /api/users/{userId}/notifications:
