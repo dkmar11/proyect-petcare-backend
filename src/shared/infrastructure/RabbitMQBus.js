@@ -17,8 +17,14 @@ class RabbitMQBus {
 
     this.initialization = amqp.connect(url).then(async (connection) => {
       this.connection = connection;
-      connection.on("error", (error) => console.error("RabbitMQ connection error:", error.message));
-      connection.on("close", () => { this.connection = null; this.channel = null; this.initialization = null; });
+      console.log("[SAGA][BACKEND][RABBITMQ] CONNECTED", { namespace: rabbitMqNamespace() });
+      connection.on("error", (error) => console.error("[SAGA][BACKEND][RABBITMQ] CONNECTION_ERROR", { error: error.message }));
+      connection.on("close", () => {
+        console.log("[SAGA][BACKEND][RABBITMQ] CLOSED");
+        this.connection = null;
+        this.channel = null;
+        this.initialization = null;
+      });
       this.channel = await connection.createChannel();
       return this.channel;
     }).catch((error) => {
@@ -38,11 +44,18 @@ class RabbitMQBus {
   async publish(exchange, routingKey, message) {
     const channel = await this.initialize();
     await channel.assertExchange(exchange, "topic", { durable: true });
-    return channel.publish(exchange, routingKey, Buffer.from(JSON.stringify(message)), {
+    const published = channel.publish(exchange, routingKey, Buffer.from(JSON.stringify(message)), {
       contentType: "application/json",
       persistent: true,
       timestamp: Date.now(),
     });
+    console.log("[SAGA][BACKEND][RABBITMQ] PUBLISHED", {
+      exchange,
+      routingKey,
+      acceptedByChannel: published,
+      ...messageContext(message),
+    });
+    return published;
   }
 
   async subscribe(exchange, queue, routingKey, callback) {
@@ -51,14 +64,18 @@ class RabbitMQBus {
     const scopedQueue = this.queueName(queue);
     await channel.assertQueue(scopedQueue, { durable: true });
     await channel.bindQueue(scopedQueue, exchange, routingKey);
+    console.log("[SAGA][BACKEND][RABBITMQ] SUBSCRIBED", { exchange, routingKey, queue: scopedQueue });
     await channel.consume(scopedQueue, async (message) => {
       if (!message) return;
+      let payload;
       try {
-        const payload = JSON.parse(message.content.toString());
+        payload = JSON.parse(message.content.toString());
+        console.log("[SAGA][BACKEND][RABBITMQ] RECEIVED", { exchange, routingKey, queue: scopedQueue, ...messageContext(payload) });
         await callback(payload, message);
         channel.ack(message);
+        console.log("[SAGA][BACKEND][RABBITMQ] ACK", { exchange, routingKey, queue: scopedQueue, ...messageContext(payload) });
       } catch (error) {
-        console.error(`Error procesando ${exchange}:${routingKey}:`, error);
+        console.error("[SAGA][BACKEND][RABBITMQ] NACK", { exchange, routingKey, queue: scopedQueue, ...messageContext(payload), error: error.message });
         channel.nack(message, false, true);
       }
     });
@@ -71,6 +88,19 @@ class RabbitMQBus {
     this.channel = null;
     this.initialization = null;
   }
+}
+
+function rabbitMqNamespace() {
+  return process.env.RABBITMQ_NAMESPACE || process.env.GCP_PROJECT_ID || process.env.NODE_ENV || "local";
+}
+
+function messageContext(message = {}) {
+  return {
+    sagaId: message.sagaId,
+    bookingId: message.bookingId,
+    commandName: message.commandName,
+    eventName: message.eventName,
+  };
 }
 
 module.exports = new RabbitMQBus();

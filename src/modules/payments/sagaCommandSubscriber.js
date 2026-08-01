@@ -10,9 +10,12 @@ async function startSagaCommandSubscriber() {
       if (command.commandName !== "PaymentRequested" || !command.sagaId || !command.bookingId) {
         throw new Error("Comando PaymentRequested inválido.");
       }
+      console.log("[SAGA][BACKEND][PAYMENT] COMMAND_START", { sagaId: command.sagaId, bookingId: command.bookingId, command: command.commandName, step: "PAYMENT" });
       try {
         await payments.confirmBookingPayment(command.bookingId, command.sagaId);
+        console.log("[SAGA][BACKEND][PAYMENT] STEP_COMPLETED", { sagaId: command.sagaId, bookingId: command.bookingId, step: "PAYMENT" });
       } catch (error) {
+        console.error("[SAGA][BACKEND][PAYMENT] STEP_ERROR", { sagaId: command.sagaId, bookingId: command.bookingId, step: "PAYMENT", error: error.message });
         await rabbitMQBus.publish("petcare_events", "saga.failed", {
           eventName: "PaymentFailed",
           eventVersion: 1,

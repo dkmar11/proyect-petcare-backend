@@ -25,7 +25,7 @@ async function confirmBookingPayment(bookingId, sagaId = null) {
     paymentMethod: paidBooking.paymentMethod,
     sagaId,
   });
-  console.log(`[confirmBookingPayment] PaymentConfirmed procesado: ${bookingId}`);
+  console.log("[SAGA][BACKEND][PAYMENT] EVENT_PUBLISHED", { sagaId, bookingId, event: "PaymentConfirmed", paymentStatus: paidBooking.paymentStatus });
   return paidBooking;
 }
 

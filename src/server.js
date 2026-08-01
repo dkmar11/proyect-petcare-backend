@@ -7,7 +7,7 @@ const { startSagaCommandSubscriber: startPaymentSagaCommands } = require("./modu
 const { startSagaCommandSubscriber: startNotificationSagaCommands } = require("./modules/notifications/sagaCommandSubscriber");
 
 async function bootstrap() {
-  const server = app.listen(env.port, () => console.log(`Server running on port ${env.port}`));
+  const server = app.listen(env.port, () => console.log("[SAGA][BACKEND] HTTP_READY", { port: env.port }));
 
   const shutdown = async () => {
     server.close();
@@ -18,13 +18,15 @@ async function bootstrap() {
   process.once("SIGTERM", shutdown);
 
   try {
+    console.log("[SAGA][BACKEND] SUBSCRIBERS_START", { namespace: process.env.RABBITMQ_NAMESPACE || "local" });
     await rabbitMQBus.initialize();
     await startPaymentSubscriber();
     await startReservationSagaCommands();
     await startPaymentSagaCommands();
     await startNotificationSagaCommands();
+    console.log("[SAGA][BACKEND] SUBSCRIBERS_READY");
   } catch (error) {
-    console.error("No se pudo iniciar RabbitMQ; las rutas HTTP seguirán disponibles:", error.message);
+    console.error("[SAGA][BACKEND] SUBSCRIBERS_START_FAILED", { error: error.message });
   }
 }
 
