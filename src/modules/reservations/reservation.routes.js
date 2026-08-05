@@ -39,9 +39,17 @@ const router = Router();
  *                 format: date-time
  *               paymentMethod:
  *                 type: string
+ *             required:
+ *               - userId
+ *               - petId
+ *               - providerId
+ *               - serviceType
+ *               - serviceMode
+ *               - scheduledAt
+ *               - paymentMethod
  *     responses:
  *       201:
- *         description: Booking created successfully.
+ *         description: Booking created and ReservationCreated event published.
  *       400:
  *         description: Bad request.
  */

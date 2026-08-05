@@ -1,4 +1,4 @@
-workspace "PetCare Backend - Modular" "C3 - Componentes modulares con Notifications y RabbitMQ" {
+workspace "PetCare Backend - Modular" "C3 - Modulos, mensajeria y consumidores del patron SAGA" {
 
     !identifiers hierarchical
 
@@ -7,13 +7,14 @@ workspace "PetCare Backend - Modular" "C3 - Componentes modulares con Notificati
         proveedor = person "Proveedor" "Atiende servicios y actualiza estados de reservas."
 
         frontend = softwareSystem "PetCare Frontend" "SPA que consume la API REST."
+        sagaOrchestrator = softwareSystem "PetCare SAGA Orchestrator" "Dispara los comandos SAGA hacia el backend y consume sus eventos de resultado." "Orchestrator"
         googleMaps = softwareSystem "Google Maps" "Servicio externo para generar enlaces de ubicacion."
         paymentGateway = softwareSystem "Pasarela de Pagos" "Proveedor externo para pagos online."
-        rabbitMq = softwareSystem "RabbitMQ" "Broker de mensajeria para eventos asincronos." "External System"
+        rabbitMq = softwareSystem "RabbitMQ" "Broker de comandos y eventos entre el backend y el orquestador." "Message Broker"
 
         petcare = softwareSystem "PetCare Backend" "API REST implementada como monolito modular." {
             api = container "Express API" "Aplicacion Node.js que monta modulos y middlewares compartidos." "Node.js, Express" {
-                app = component "App and Server" "Puntos de entrada app.js y server.js; inicia subscriber de pagos." "Node.js" {
+                app = component "App and Server" "Puntos de entrada app.js y server.js; inicia consumidores de pagos, notificaciones y compensaciones." "Node.js" {
                     tags "EntryPoint"
                 }
                 shared = component "Shared" "Config, errores, middlewares, Prisma, storage y RabbitMQBus." "Shared infrastructure" {
@@ -25,7 +26,7 @@ workspace "PetCare Backend - Modular" "C3 - Componentes modulares con Notificati
                 pets = component "Pets Module" "Perfiles de mascotas y cartillas de vacunacion." "Domain module" {
                     tags "DomainModule"
                 }
-                reservations = component "Reservations Module" "Agendamiento, estado y promociones." "Domain module" {
+                reservations = component "Reservations Module" "POST /bookings, reglas, persistencia, publicación de ReservationCreated y compensación." "Domain module" {
                     tags "DomainModule"
                 }
                 notifications = component "Notifications Module" "Listado, marcado y recordatorios de notificaciones." "Domain module" {
@@ -35,6 +36,15 @@ workspace "PetCare Backend - Modular" "C3 - Componentes modulares con Notificati
                     tags "DomainModule"
                 }
                 paymentSubscriber = component "Payment Subscriber" "Suscribe payment.confirmed y sincroniza reservas." "Subscriber" {
+                    tags "Subscriber"
+                }
+                paymentCommandSubscriber = component "Payment Command Subscriber" "Recibe PaymentRequested desde RabbitMQ y ejecuta el pago; publica PaymentConfirmed o PaymentFailed." "Subscriber" {
+                    tags "Subscriber"
+                }
+                notificationCommandSubscriber = component "Notification Command Subscriber" "Recibe NotificationRequested desde RabbitMQ y publica NotificationSent o NotificationFailed." "Subscriber" {
+                    tags "Subscriber"
+                }
+                reservationCompensationSubscriber = component "Reservation Compensation Subscriber" "Recibe ReservationCompensate desde RabbitMQ, elimina la reserva y publica ReservationCompensated." "Subscriber" {
                     tags "Subscriber"
                 }
             }
@@ -50,6 +60,8 @@ workspace "PetCare Backend - Modular" "C3 - Componentes modulares con Notificati
         cliente -> frontend "Usa"
         proveedor -> frontend "Usa"
         frontend -> petcare.api.app "Consume API REST" "JSON/HTTPS"
+        sagaOrchestrator -> rabbitMq "1. Publica comandos SAGA" "AMQP"
+        rabbitMq -> sagaOrchestrator "Eventos de resultado: ReservationCreated, PaymentConfirmed, PaymentFailed, NotificationSent y ReservationCompensated" "AMQP"
         paymentGateway -> petcare.api.payments "Invoca confirmacion de pago" "HTTPS/Webhook"
 
         petcare.api.app -> petcare.api.shared "Inicializa configuracion y middlewares"
@@ -58,19 +70,34 @@ workspace "PetCare Backend - Modular" "C3 - Componentes modulares con Notificati
         petcare.api.app -> petcare.api.reservations "Monta rutas de reservations"
         petcare.api.app -> petcare.api.notifications "Monta rutas de notifications"
         petcare.api.app -> petcare.api.payments "Monta rutas de payments"
-        petcare.api.app -> petcare.api.paymentSubscriber "Arranca consumidor RabbitMQ"
+        petcare.api.app -> petcare.api.paymentSubscriber "Arranca consumidor payment.confirmed"
+        petcare.api.app -> petcare.api.paymentCommandSubscriber "Arranca consumidor PaymentRequested"
+        petcare.api.app -> petcare.api.notificationCommandSubscriber "Arranca consumidor NotificationRequested"
+        petcare.api.app -> petcare.api.reservationCompensationSubscriber "Arranca consumidor ReservationCompensate"
 
         petcare.api.users -> petcare.api.shared "Usa Prisma y errores compartidos"
         petcare.api.pets -> petcare.api.shared "Usa Prisma y storage compartido"
         petcare.api.pets -> petcare.files "Guarda cartillas"
         petcare.api.reservations -> petcare.api.shared "Usa Prisma y errores compartidos"
-        petcare.api.reservations -> petcare.api.notifications "Crea notificaciones de negocio"
+        petcare.api.reservations -> rabbitMq "Publica reservation.created" "AMQP"
         petcare.api.reservations -> googleMaps "Genera URLs de ubicacion" "HTTPS"
 
         petcare.api.notifications -> petcare.api.shared "Usa Prisma y repositorio"
 
         petcare.api.payments -> petcare.api.shared "Usa Prisma y RabbitMQBus"
         petcare.api.payments -> rabbitMq "Publica payment.confirmed" "AMQP"
+
+        rabbitMq -> petcare.api.paymentCommandSubscriber "Entrega PaymentRequested" "AMQP"
+        petcare.api.paymentCommandSubscriber -> petcare.api.payments "Ejecuta confirmBookingPayment"
+        petcare.api.paymentCommandSubscriber -> rabbitMq "Publica PaymentConfirmed o PaymentFailed" "AMQP"
+
+        rabbitMq -> petcare.api.notificationCommandSubscriber "Entrega NotificationRequested" "AMQP"
+        petcare.api.notificationCommandSubscriber -> petcare.api.notifications "Ejecuta notifications.create"
+        petcare.api.notificationCommandSubscriber -> rabbitMq "Publica NotificationSent o NotificationFailed" "AMQP"
+
+        rabbitMq -> petcare.api.reservationCompensationSubscriber "Entrega ReservationCompensate" "AMQP"
+        petcare.api.reservationCompensationSubscriber -> petcare.api.reservations "Ejecuta reservations.compensate"
+        petcare.api.reservationCompensationSubscriber -> rabbitMq "Publica ReservationCompensated" "AMQP"
 
         rabbitMq -> petcare.api.paymentSubscriber "Entrega PaymentConfirmed" "AMQP"
         petcare.api.paymentSubscriber -> petcare.api.reservations "Ejecuta handlePaymentConfirmed"
@@ -81,7 +108,40 @@ workspace "PetCare Backend - Modular" "C3 - Componentes modulares con Notificati
     views {
         component petcare.api "ComponentesBackendModular" "Vista C3: modulos de dominio, shared y eventos RabbitMQ." {
             include *
+            include sagaOrchestrator
+            include rabbitMq
+            include frontend
             autolayout lr
+            description "C3 del backend: el SAGA Orchestrator dispara comandos; RabbitMQ los entrega a los subscribers especializados de Payment, Notification y Compensation."
+        }
+
+        dynamic petcare.api "Mensajeria-SAGA-Exitosa" {
+            title "Mensajeria SAGA - Payment y Notification"
+            sagaOrchestrator -> rabbitMq "1. PaymentRequested"
+            rabbitMq -> petcare.api.paymentCommandSubscriber "2. Entrega PaymentRequested"
+            petcare.api.paymentCommandSubscriber -> petcare.api.payments "3. Ejecuta el pago"
+            petcare.api.paymentCommandSubscriber -> rabbitMq "4. PaymentConfirmed"
+            rabbitMq -> sagaOrchestrator "5. Orchestrator recibe PaymentConfirmed"
+            sagaOrchestrator -> rabbitMq "6. NotificationRequested"
+            rabbitMq -> petcare.api.notificationCommandSubscriber "7. Entrega NotificationRequested"
+            petcare.api.notificationCommandSubscriber -> petcare.api.notifications "8. Crea la notificacion"
+            petcare.api.notificationCommandSubscriber -> rabbitMq "9. NotificationSent"
+            rabbitMq -> sagaOrchestrator "10. SAGA COMPLETED"
+            autoLayout lr
+        }
+
+        dynamic petcare.api "Mensajeria-SAGA-Compensacion" {
+            title "Mensajeria SAGA - PaymentFailed y compensacion"
+            sagaOrchestrator -> rabbitMq "1. PaymentRequested"
+            rabbitMq -> petcare.api.paymentCommandSubscriber "2. Entrega PaymentRequested"
+            petcare.api.paymentCommandSubscriber -> rabbitMq "3. PaymentFailed"
+            rabbitMq -> sagaOrchestrator "4. Orchestrator activa compensacion"
+            sagaOrchestrator -> rabbitMq "5. ReservationCompensate"
+            rabbitMq -> petcare.api.reservationCompensationSubscriber "6. Entrega ReservationCompensate"
+            petcare.api.reservationCompensationSubscriber -> petcare.api.reservations "7. Elimina la reserva"
+            petcare.api.reservationCompensationSubscriber -> rabbitMq "8. ReservationCompensated"
+            rabbitMq -> sagaOrchestrator "9. SAGA COMPENSATED"
+            autoLayout lr
         }
 
         styles {
@@ -117,6 +177,15 @@ workspace "PetCare Backend - Modular" "C3 - Componentes modulares con Notificati
             element "Subscriber" {
                 background "#f4a261"
                 color "#102a43"
+            }
+            element "Orchestrator" {
+                background "#7b61ff"
+                color "#ffffff"
+            }
+            element "Message Broker" {
+                background "#f4b942"
+                color "#ffffff"
+                shape pipe
             }
             element "Database" {
                 shape cylinder

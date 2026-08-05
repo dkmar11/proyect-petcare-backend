@@ -29,6 +29,7 @@ RabbitMQ es obligatorio para arrancar el servidor: define `CLOUDAMQP_URL` en `.e
 - `POST /api/pets/:petId/vaccination-record` sube un PDF o imagen (`record`, máximo 5 MB).
 - `GET /api/providers` lista proveedores y sus capacidades de domicilio/recojo.
 - `POST /api/bookings` crea una reserva y valida modalidad, pago y requisitos de vacunas.
+- Al crear una reserva aceptada, el backend publica `ReservationCreated` con un `sagaId`; el orquestador continúa con payment y notification.
 - `GET /api/users/:userId/bookings` consulta reservas con mascota, proveedor y promoción.
 - `PATCH /api/bookings/:bookingId/status` permite al proveedor marcar `CONFIRMED`, `IN_PROGRESS`, `COMPLETED` o `REJECTED` (requiere `rejectionReason`).
 - `POST /api/bookings/:bookingId/payment/confirm` confirma un pago online; sirve como punto de integración/webhook para la pasarela elegida.

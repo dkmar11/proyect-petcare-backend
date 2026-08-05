@@ -2,7 +2,7 @@ const app = require("./app");
 const env = require("./shared/config/env");
 const rabbitMQBus = require("./shared/infrastructure/RabbitMQBus");
 const { startPaymentSubscriber } = require("./modules/reservations/subscribers/paymentSubscriber");
-const { startSagaCommandSubscriber: startReservationSagaCommands } = require("./modules/reservations/subscribers/sagaCommandSubscriber");
+const { startReservationCompensationSubscriber } = require("./modules/reservations/subscribers/sagaCommandSubscriber");
 const { startSagaCommandSubscriber: startPaymentSagaCommands } = require("./modules/payments/sagaCommandSubscriber");
 const { startSagaCommandSubscriber: startNotificationSagaCommands } = require("./modules/notifications/sagaCommandSubscriber");
 
@@ -21,7 +21,7 @@ async function bootstrap() {
     console.log("[SAGA][BACKEND] SUBSCRIBERS_START", { namespace: process.env.RABBITMQ_NAMESPACE || "local" });
     await rabbitMQBus.initialize();
     await startPaymentSubscriber();
-    await startReservationSagaCommands();
+    await startReservationCompensationSubscriber();
     await startPaymentSagaCommands();
     await startNotificationSagaCommands();
     console.log("[SAGA][BACKEND] SUBSCRIBERS_READY");
