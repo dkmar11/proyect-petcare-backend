@@ -7,6 +7,7 @@ workspace "PetCare Backend - Modular" "C3 - Modulos, mensajeria y consumidores d
         proveedor = person "Proveedor" "Atiende servicios y actualiza estados de reservas."
 
         frontend = softwareSystem "PetCare Frontend" "SPA que consume la API REST."
+        apiGateway = softwareSystem "PetCare API Gateway" "Punto unico de entrada HTTP; enruta /api y /reservations-api hacia los servicios internos." "API Gateway"
         sagaOrchestrator = softwareSystem "PetCare SAGA Orchestrator" "Dispara los comandos SAGA hacia el backend y consume sus eventos de resultado." "Orchestrator"
         googleMaps = softwareSystem "Google Maps" "Servicio externo para generar enlaces de ubicacion."
         paymentGateway = softwareSystem "Pasarela de Pagos" "Proveedor externo para pagos online."
@@ -67,8 +68,9 @@ workspace "PetCare Backend - Modular" "C3 - Modulos, mensajeria y consumidores d
 
         cliente -> frontend "Usa"
         proveedor -> frontend "Usa"
-        frontend -> petcare.api.app "Consume API REST de usuarios, mascotas, pagos y notificaciones" "JSON/HTTPS"
-        frontend -> reservationsService.api "Consume API REST de reservas" "JSON/HTTPS"
+        frontend -> apiGateway "Consume API publica" "JSON/HTTPS"
+        apiGateway -> petcare.api.app "Enruta /api hacia usuarios, mascotas, pagos y notificaciones" "HTTP"
+        apiGateway -> reservationsService.api "Enruta /reservations-api hacia reservas" "HTTP"
         sagaOrchestrator -> rabbitMq "1. Publica comandos SAGA" "AMQP"
         rabbitMq -> sagaOrchestrator "Eventos de resultado: ReservationCreated, PaymentConfirmed, PaymentFailed, NotificationSent y ReservationCompensated" "AMQP"
         paymentGateway -> petcare.api.payments "Invoca confirmacion de pago" "HTTPS/Webhook"
@@ -116,6 +118,7 @@ workspace "PetCare Backend - Modular" "C3 - Modulos, mensajeria y consumidores d
             include sagaOrchestrator
             include rabbitMq
             include frontend
+            include apiGateway
             include reservationsService
             include reservationsService.api
             autolayout lr
@@ -184,6 +187,10 @@ workspace "PetCare Backend - Modular" "C3 - Modulos, mensajeria y consumidores d
             element "Subscriber" {
                 background "#f4a261"
                 color "#102a43"
+            }
+            element "API Gateway" {
+                background "#5c677d"
+                color "#ffffff"
             }
             element "Reservations Service" {
                 background "#2a9d8f"

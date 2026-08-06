@@ -7,6 +7,7 @@ workspace "PetCare - Arquitectura SAGA" "C2 - Frontend, Backend, Orchestrator y 
         serviceProvider = person "Proveedor de Servicios" "Gestiona agenda y estados de servicio." "Provider"
 
         frontend = softwareSystem "PetCare Frontend" "SPA React que crea y consulta reservas mediante la API del backend." "Client System"
+        apiGateway = softwareSystem "PetCare API Gateway" "Punto unico de entrada HTTP para el frontend; enruta /api y /reservations-api hacia los servicios internos." "API Gateway"
         sagaOrchestrator = softwareSystem "PetCare SAGA Orchestrator" "Coordina payment, notification y la compensacion de la reserva." "Orchestrator"
         paymentGateway = softwareSystem "Pasarela de Pagos" "Sistema externo para pagos online." "External System"
         mappingService = softwareSystem "Google Maps" "Servicio externo de ubicacion." "External System"
@@ -25,9 +26,9 @@ workspace "PetCare - Arquitectura SAGA" "C2 - Frontend, Backend, Orchestrator y 
 
         petOwner -> frontend "Usa" "Web"
         serviceProvider -> frontend "Usa" "Web"
-        frontend -> petcare.api "Consume usuarios, mascotas, pagos y notificaciones" "JSON/HTTPS"
-        frontend -> reservations.api "Crea reserva: POST /api/bookings" "JSON/HTTPS"
-        frontend -> reservations.api "Consulta reservas: GET /api/users/:userId/bookings" "JSON/HTTPS"
+        frontend -> apiGateway "Consume API publica" "JSON/HTTPS"
+        apiGateway -> petcare.api "Enruta /api: usuarios, mascotas, pagos y notificaciones" "HTTP"
+        apiGateway -> reservations.api "Enruta /reservations-api: reservas" "HTTP"
 
         paymentGateway -> petcare.api "Confirma pagos en /bookings/:id/payment/confirm" "HTTPS/Webhook"
 
@@ -47,6 +48,7 @@ workspace "PetCare - Arquitectura SAGA" "C2 - Frontend, Backend, Orchestrator y 
         container petcare "Contenedores-PetCare-Backend" {
             include *
             include frontend
+            include apiGateway
             include sagaOrchestrator
             include rabbitMq
             include paymentGateway
@@ -55,38 +57,40 @@ workspace "PetCare - Arquitectura SAGA" "C2 - Frontend, Backend, Orchestrator y 
             include petOwner
             include serviceProvider
             autoLayout lr
-            description "C2 del patron SAGA: Frontend crea la reserva en el microservicio Reservations, que usa su propia base de datos; el Orchestrator coordina Payment, Notification y Compensation mediante RabbitMQ."
+            description "C2 del patron SAGA: Frontend consume el API Gateway, que enruta hacia Backend y Reservations; el Orchestrator coordina Payment, Notification y Compensation mediante RabbitMQ."
         }
 
         dynamic petcare "SAGA-Flujo-Exitoso" {
             title "Patron SAGA - flujo exitoso"
-            frontend -> reservations.api "1. POST /api/bookings"
-            reservations.api -> rabbitMq "2. ReservationCreated"
-            rabbitMq -> sagaOrchestrator "3. Orchestrator recibe el evento"
-            sagaOrchestrator -> rabbitMq "4. PaymentRequested"
-            rabbitMq -> petcare.api "5. Backend procesa el pago"
-            petcare.api -> rabbitMq "6. PaymentConfirmed"
-            rabbitMq -> sagaOrchestrator "7. Orchestrator recibe confirmacion"
-            sagaOrchestrator -> rabbitMq "8. NotificationRequested"
-            rabbitMq -> petcare.api "9. Backend crea la notificacion"
-            petcare.api -> rabbitMq "10. NotificationSent"
-            rabbitMq -> sagaOrchestrator "11. SAGA COMPLETED"
+            frontend -> apiGateway "1. POST /reservations-api/bookings"
+            apiGateway -> reservations.api "2. Enruta POST /api/bookings"
+            reservations.api -> rabbitMq "3. ReservationCreated"
+            rabbitMq -> sagaOrchestrator "4. Orchestrator recibe el evento"
+            sagaOrchestrator -> rabbitMq "5. PaymentRequested"
+            rabbitMq -> petcare.api "6. Backend procesa el pago"
+            petcare.api -> rabbitMq "7. PaymentConfirmed"
+            rabbitMq -> sagaOrchestrator "8. Orchestrator recibe confirmacion"
+            sagaOrchestrator -> rabbitMq "9. NotificationRequested"
+            rabbitMq -> petcare.api "10. Backend crea la notificacion"
+            petcare.api -> rabbitMq "11. NotificationSent"
+            rabbitMq -> sagaOrchestrator "12. SAGA COMPLETED"
             autoLayout lr
         }
 
         dynamic petcare "SAGA-Flujo-Compensacion" {
             title "Patron SAGA - PaymentFailed y compensacion"
-            frontend -> reservations.api "1. POST /api/bookings"
-            reservations.api -> rabbitMq "2. ReservationCreated"
-            rabbitMq -> sagaOrchestrator "3. Orchestrator inicia PAYMENT"
-            sagaOrchestrator -> rabbitMq "4. PaymentRequested"
-            rabbitMq -> petcare.api "5. Backend procesa el pago"
-            petcare.api -> rabbitMq "6. PaymentFailed"
-            rabbitMq -> sagaOrchestrator "7. Orchestrator activa compensacion"
-            sagaOrchestrator -> rabbitMq "8. ReservationCompensate"
-            rabbitMq -> reservations.api "9. Reservations elimina la reserva"
-            reservations.api -> rabbitMq "10. ReservationCompensated"
-            rabbitMq -> sagaOrchestrator "11. SAGA COMPENSATED"
+            frontend -> apiGateway "1. POST /reservations-api/bookings"
+            apiGateway -> reservations.api "2. Enruta POST /api/bookings"
+            reservations.api -> rabbitMq "3. ReservationCreated"
+            rabbitMq -> sagaOrchestrator "4. Orchestrator inicia PAYMENT"
+            sagaOrchestrator -> rabbitMq "5. PaymentRequested"
+            rabbitMq -> petcare.api "6. Backend procesa el pago"
+            petcare.api -> rabbitMq "7. PaymentFailed"
+            rabbitMq -> sagaOrchestrator "8. Orchestrator activa compensacion"
+            sagaOrchestrator -> rabbitMq "9. ReservationCompensate"
+            rabbitMq -> reservations.api "10. Reservations elimina la reserva"
+            reservations.api -> rabbitMq "11. ReservationCompensated"
+            rabbitMq -> sagaOrchestrator "12. SAGA COMPENSATED"
             autoLayout lr
         }
 
@@ -108,6 +112,11 @@ workspace "PetCare - Arquitectura SAGA" "C2 - Frontend, Backend, Orchestrator y 
             element "Client System" {
                 shape RoundedBox
                 background #1f7a8c
+                color #ffffff
+            }
+            element "API Gateway" {
+                shape RoundedBox
+                background #5c677d
                 color #ffffff
             }
             element "Reservations Service" {
