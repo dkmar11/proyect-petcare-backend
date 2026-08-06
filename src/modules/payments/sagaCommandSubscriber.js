@@ -16,7 +16,11 @@ async function startSagaCommandSubscriber() {
         if (Math.random() < env.paymentFailureProbability) {
           throw new Error("Fallo simulado del servicio de pagos.");
         }
-        await payments.confirmBookingPayment(command.bookingId, command.sagaId);
+        await payments.confirmBookingPayment(command.bookingId, {
+          sagaId: command.sagaId,
+          paymentMethod: command.paymentMethod,
+          userId: command.userId,
+        });
         console.log("[SAGA][BACKEND][PAYMENT] STEP_COMPLETED", { sagaId: command.sagaId, bookingId: command.bookingId, step: "PAYMENT" });
       } catch (error) {
         console.error("[SAGA][BACKEND][PAYMENT] STEP_ERROR", { sagaId: command.sagaId, bookingId: command.bookingId, step: "PAYMENT", error: error.message });

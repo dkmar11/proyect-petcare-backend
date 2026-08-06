@@ -47,18 +47,4 @@ router.get("/users/:userId/notifications", asyncHandler(controller.list));
  */
 router.patch("/notifications/:notificationId/read", asyncHandler(controller.markRead));
 
-/**
- * @swagger
- * /api/maintenance/appointment-reminders:
- *   post:
- *     summary: Send appointment reminders
- *     description: Triggers the sending of appointment reminders. This is an administrative endpoint.
- *     responses:
- *       200:
- *         description: Reminders sent successfully.
- *       500:
- *         description: Internal server error.
- */
-router.post("/maintenance/appointment-reminders", asyncHandler(controller.sendReminders));
-
 module.exports = router;

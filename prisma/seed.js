@@ -12,11 +12,6 @@ async function main() {
     update: {},
     create: { id: "provider-calacoto", displayName: "PetCare Calacoto", providerType: "ALL", city: "La Paz", supportsPickup: true, supportsHome: true, branchId: branch.id },
   });
-  await prisma.promotion.upsert({
-    where: { code: "BIENVENIDA20" },
-    update: {},
-    create: { code: "BIENVENIDA20", title: "Primera visita con 20% OFF", description: "Promoción nacional para nuevos clientes.", discountPct: 20, scope: "NATIONAL", startsAt: new Date("2025-01-01"), endsAt: new Date("2027-12-31") },
-  });
   const user = await prisma.user.upsert({ where: { email: "andrea@petcare.demo" }, update: {}, create: { fullName: "Andrea Ramírez", email: "andrea@petcare.demo" } });
   await prisma.pet.upsert({ where: { id: "pet-milo" }, update: {}, create: { id: "pet-milo", name: "Milo", species: "Perro", breed: "Golden Retriever", ownerId: user.id } });
   console.log({ userId: user.id, providerId: provider.id });
