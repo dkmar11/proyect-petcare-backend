@@ -8,7 +8,24 @@ async function startSagaCommandSubscriber() {
     "notification.requested",
     async (command) => {
       if (command.commandName !== "NotificationRequested" || !command.sagaId || !command.userId || !command.bookingId) {
-        throw new Error("Comando NotificationRequested inválido.");
+        const error = "Comando NotificationRequested inválido.";
+        console.error("[SAGA][BACKEND][NOTIFICATION] INVALID_COMMAND", {
+          sagaId: command.sagaId,
+          bookingId: command.bookingId,
+          command: command.commandName,
+          missing: ["commandName", "sagaId", "userId", "bookingId"].filter((field) => !command[field]),
+        });
+        if (command.sagaId && command.bookingId) {
+          await rabbitMQBus.publish("petcare_events", "saga.failed", {
+            eventName: "NotificationFailed",
+            eventVersion: 1,
+            sagaId: command.sagaId,
+            step: "NOTIFICATION",
+            bookingId: command.bookingId,
+            error,
+          });
+        }
+        return;
       }
       console.log("[SAGA][BACKEND][NOTIFICATION] COMMAND_START", { sagaId: command.sagaId, bookingId: command.bookingId, command: command.commandName, step: "NOTIFICATION" });
       try {
